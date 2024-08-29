@@ -143,8 +143,11 @@ public class UcxConnectionTest {
                 // Send connection success message
                 String successMessage = "Connection successful from " + host;
                 ByteBuffer msgBuffer = ByteBuffer.wrap(successMessage.getBytes());
+                UcpMemory registeredMsgBuffer = context.registerMemory(msgBuffer);
                 long dataAddress = UcxUtils.getAddress(msgBuffer);
+                System.out.println("Server sending the connection confirmation message to client.");
                 endpoint.sendAmNonBlocking(AM_ID_CONNECTION, 0, 0, dataAddress, msgBuffer.remaining(), 0, null);
+                System.out.println("Server sent the connection confirmation message to client.");
             } catch (UcxException e) {
                 System.out.println("Error handling new connection: " + e.getMessage());
             }
@@ -216,19 +219,21 @@ public class UcxConnectionTest {
 
         private void setupActiveMessageHandlers() {
             worker.setAmRecvHandler(AM_ID_CONNECTION, (headerAddress, headerSize, amData, replyEp) -> {
-                long dataAddress = amData.getDataAddress();
-                long dataLength = amData.getLength();
-                ByteBuffer buffer = UcxUtils.getByteBufferView(dataAddress, (int)dataLength);
-                String message = new String(buffer.array());
-                System.out.println("Client received connection confirmation: " + message);
+              // TODO system crash, this line is never reached
+              System.out.println("Client received connection confirmation, to be processed");  
+              long dataAddress = amData.getDataAddress();
+              long dataLength = amData.getLength();
+              ByteBuffer buffer = UcxUtils.getByteBufferView(dataAddress, (int)dataLength);
+              String message = new String(buffer.array());
+              System.out.println("Client received connection confirmation: " + message);
 
-                String serverAddress = message.split("from ")[1];
-                EndpointInfo info = endpoints.get(serverAddress);
-                if (info != null) {
-                    info.status = ConnectionStatus.CONNECTED;
-                }
+              String serverAddress = message.split("from ")[1];
+              EndpointInfo info = endpoints.get(serverAddress);
+              if (info != null) {
+                  info.status = ConnectionStatus.CONNECTED;
+              }
 
-                return UcsConstants.STATUS.UCS_OK;
+              return UcsConstants.STATUS.UCS_OK;
             }, UcpConstants.UCP_AM_FLAG_WHOLE_MSG);
 
             worker.setAmRecvHandler(AM_ID_RESPONSE, (headerAddress, headerSize, amData, replyEp) -> {
